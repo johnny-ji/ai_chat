@@ -1,0 +1,10 @@
+# Ignore models directory
+models/
+
+# Ignore all hidden directories (any directory starting with a dot)
+.*/
+.venv/
+outputs/
+
+# Ignore Python cache directories anywhere
+__pycache__/
