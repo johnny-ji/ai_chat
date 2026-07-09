@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import json
 import websockets
 import time
@@ -28,9 +29,11 @@ def load_config(env: str, config_path: str = None) -> dict:
 
 
 def download_model(model_name: str, model_revision: str, local_dir: str) -> str:
-    local_path = os.path.join(local_dir, model_name)
-    if os.path.exists(local_path) and os.listdir(local_path):
-        return local_path
+    # ModelScope snapshot_download stores at {cache_dir}/models/{normalized_name}/snapshots/{revision}/
+    normalized = model_name.replace("/", "--")
+    snapshot_path = os.path.join(local_dir, "models", normalized, "snapshots", model_revision)
+    if os.path.exists(snapshot_path) and os.listdir(snapshot_path):
+        return snapshot_path
 
     try:
         print(f"正在下载模型: {model_name} (revision: {model_revision})")
@@ -39,16 +42,14 @@ def download_model(model_name: str, model_revision: str, local_dir: str) -> str:
         raise RuntimeError(f"模型下载失败: {model_name} (revision: {model_revision}). 错误: {e}") from e
 
 
-def ensure_models(config: dict):
-    models_dir = config.get("models_dir", "./models")
+def ensure_models(config: dict) -> dict:
+    models_dir = config.get("models_dir", "models")
     os.makedirs(models_dir, exist_ok=True)
-    models = [
-        (config["asr_model_online"], config["asr_model_online_revision"]),
-        (config["vad_model"], config["vad_model_revision"]),
-        (config["punc_model"], config["punc_model_revision"]),
-    ]
-    for model_name, revision in models:
-        download_model(model_name, revision, models_dir)
+    return {
+        "asr_model_online": download_model(config["asr_model_online"], config["asr_model_online_revision"], models_dir),
+        "vad_model": download_model(config["vad_model"], config["vad_model_revision"], models_dir),
+        "punc_model": download_model(config["punc_model"], config["punc_model_revision"], models_dir),
+    }
 
 
 parser = argparse.ArgumentParser()
@@ -57,40 +58,48 @@ parser.add_argument("--config", type=str, default=None, help="配置文件路径
 args = parser.parse_args()
 
 config = load_config(args.env, args.config)
-ensure_models(config)
+model_paths = ensure_models(config)
 
 websocket_users = set()
 
 
-models_dir = config["models_dir"]
 model_vad = AutoModel(
-    model=os.path.join(models_dir, config["vad_model"]),
+    model=model_paths["vad_model"],
     model_revision=config["vad_model_revision"],
     ngpu=config["ngpu"],
     ncpu=config["ncpu"],
     device=config["device"],
     disable_pbar=True,
     disable_log=True,
+    disable_update=True,
 )
+gc.collect()
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
 
 model_asr_streaming = AutoModel(
-    model=os.path.join(models_dir, config["asr_model_online"]),
+    model=model_paths["asr_model_online"],
     model_revision=config["asr_model_online_revision"],
     ngpu=config["ngpu"],
     ncpu=config["ncpu"],
     device=config["device"],
     disable_pbar=True,
     disable_log=True,
+    disable_update=True,
 )
+gc.collect()
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
 
 model_punc = AutoModel(
-    model=os.path.join(models_dir, config["punc_model"]),
+    model=model_paths["punc_model"],
     model_revision=config["punc_model_revision"],
     ngpu=config["ngpu"],
     ncpu=config["ncpu"],
     device=config["device"],
     disable_pbar=True,
     disable_log=True,
+    disable_update=True,
 )
 
 print("model loaded! (now supports multi-client with non-blocking inference)")

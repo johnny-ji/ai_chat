@@ -28,4 +28,4 @@ silence_rms_threshold: 300
 silence_timeout_ms: 1000
 
 # 模型管理
-models_dir: "./models"
+models_dir: "models"

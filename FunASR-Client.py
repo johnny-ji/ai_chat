@@ -7,6 +7,7 @@ from datetime import datetime
 import numpy as np
 import sounddevice as sd
 import websockets
+from llm_util import chat_with_streaming_response
 
 
 # ====== 配置 ======
@@ -90,6 +91,7 @@ async def receive_results(ws, output_path: str):
             full_text = accumulated + text
             # Clear the partial preview line then print final on its own line
             print(f"\r\033[K[final] {full_text}", flush=True)
+            chat_with_streaming_response(full_text)
             save_text(full_text, output_path)
             accumulated = ""
         else:

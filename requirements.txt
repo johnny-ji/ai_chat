@@ -4,6 +4,9 @@ websockets>=10.0
 PyYAML>=6.0
 numpy>=1.19.0
 torch>=1.9.0
-sounddevice>=0.4.0      # FunASR-Client 麦克风录音
-numpy>=1.19.0           # FunASR-Client 音频数据转换
-websockets>=10.0        # FunASR-Client WebSocket 通信
+torchaudio==2.11.0
+
+# FunASR-Client
+sounddevice>=0.4.0
+numpy>=1.19.0
+websockets>=10.0
