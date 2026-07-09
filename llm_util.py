@@ -14,7 +14,7 @@ def chat_with_streaming_response(user_message: str):
         base_url="https://ws-pfc9xcvzdopof45u.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
     )
     completion = client.chat.completions.create(
-        model="tongyi-intent-detect-v3",
+        model="qwen-turbo",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": user_message},

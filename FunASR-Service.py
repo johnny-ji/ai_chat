@@ -228,13 +228,14 @@ async def ws_serve(websocket, path=None):
                                 text = punc_out[0].get("text", text)
                             except Exception as e:
                                 print(f"[ERROR] Punc flush on stop: {e}")
-                        if text:
-                            print(f"[ASR final/flush] {text}", flush=True)
-                            await websocket.send(json.dumps({
-                                "text": text,
-                                "wav_name": websocket.wav_name,
-                                "is_final": True,
-                            }, ensure_ascii=False))
+                        # 始终发送 is_final=True 消息（即使 text 为空），让客户端知道本段已结束，
+                        # 客户端会用自己累积的 partial 文本兜底，避免"结果静默丢失"
+                        print(f"[ASR final/flush] {text!r}", flush=True)
+                        await websocket.send(json.dumps({
+                            "text": text,
+                            "wav_name": websocket.wav_name,
+                            "is_final": True,
+                        }, ensure_ascii=False))
                         # Reset state
                         chunk_size_backup = websocket.status_dict_asr_online.get("chunk_size")
                         speech_start = False
@@ -308,7 +309,12 @@ async def ws_serve(websocket, path=None):
                 print(f"[VAD] speech end at {speech_end_i}ms", flush=True)
 
             # 能量兜底：VAD 参数不生效时用 RMS 能量检测静音
-            if speech_start and speech_end_i == -1:
+            # 注意：不再要求 speech_start 已为 True —— 如果客户端从连接开始就一直没有
+            # 说话（VAD 从未检测到 speech_start_i != -1），之前的逻辑会导致
+            # consecutive_silence_ms 永远不累加，从而永远无法触发 is_final。
+            # 现在只要 speech_end_i == -1（VAD 尚未判定结束），就持续用 RMS 能量
+            # 累计静音时长，无论此前是否检测到过语音开始。
+            if speech_end_i == -1:
                 rms = _frame_rms(pcm)
                 if rms < _SILENCE_RMS_THRESHOLD:
                     consecutive_silence_ms += duration_ms
@@ -362,14 +368,18 @@ async def ws_serve(websocket, path=None):
                     except Exception as e:
                         print(f"[ERROR] Punctuation failed: {e}")
 
-                if text:
-                    print(f"[ASR final] {text}", flush=True)
-                    msg = {
-                        "text": text,
-                        "wav_name": websocket.wav_name,
-                        "is_final": True,
-                    }
-                    await websocket.send(json.dumps(msg, ensure_ascii=False))
+                # 始终发送 is_final=True 消息，即使这最后一块音频识别结果为空
+                # （常见于最后一个字尾部音频过短/信息量不足）。之前这里用 `if text:` 卫语句
+                # 拦住了空文本，导致客户端完全收不到"本段已结束"的信号，只能靠自己的
+                # 静音判断卡住、误以为没有 final。现在无条件发送，客户端收到 is_final=True
+                # 后会用自己已经累积的 partial 文本作为兜底结果。
+                print(f"[ASR final] {text!r}", flush=True)
+                msg = {
+                    "text": text,
+                    "wav_name": websocket.wav_name,
+                    "is_final": True,
+                }
+                await websocket.send(json.dumps(msg, ensure_ascii=False))
 
                 # Bug fix: preserve chunk_size when resetting state between speech segments
                 chunk_size_backup = websocket.status_dict_asr_online.get("chunk_size")
