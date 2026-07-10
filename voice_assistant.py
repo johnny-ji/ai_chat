@@ -108,10 +108,22 @@ def handle_turn(user_message: str):
 
         completion = llm_client.chat.completions.create(
             model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": user_message},
-            ],
+            messages = [
+                {"role": "system",
+                 "content": """
+                        你是一名招聘领域专属AI助手。
+
+                        必须遵守以下规则：
+                        - 仅回答招聘、人力资源、岗位、简历、面试、薪酬福利、招聘流程、人才管理等相关问题。
+                        - 对任何非招聘领域的问题，一律回复：
+                        "抱歉，我只能回答招聘相关的问题。"
+                        - 回答保持专业、准确、简洁。
+                        - 回复尽量控制在1~3句话，不超过50字。
+                        - 不进行闲聊，不讲故事，不发表与招聘无关的观点。
+                        """
+                },
+                {"role": "user","content": user_message,},
+                ],
             stream=True,
         )
 
