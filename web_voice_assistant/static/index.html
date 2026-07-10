@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音对话助手</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎙️ 语音对话助手</h1>
+            <div class="status" id="status">等待中...</div>
+        </header>
+
+        <main class="chat-container">
+            <div class="messages" id="messages">
+                <!-- 对话消息将在这里显示 -->
+            </div>
+        </main>
+
+        <footer class="input-area">
+            <button class="record-btn" id="recordBtn">
+                <span class="btn-text">按住说话</span>
+                <span class="btn-icon">🎤</span>
+            </button>
+            <p class="hint">按住按钮开始录音，松开结束</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
