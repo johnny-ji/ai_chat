@@ -311,7 +311,9 @@ class VoiceChatApp {
         this.recorder = new AudioRecorder();
         this.player = new AudioPlayer();
         this.ui = new ChatUI();
-        this.ws = new WebSocketClient('ws://localhost:8000/ws');
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+        this.ws = new WebSocketClient(wsUrl);
         this.isRecording = false;
         this.setupEventListeners();
         this.setupWebSocketHandlers();

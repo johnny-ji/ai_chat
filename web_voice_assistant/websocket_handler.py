@@ -43,6 +43,7 @@ class ConnectionHandler:
         self.is_recording = False
         self.current_user_text = ""
         self.is_processing = False
+        self.loop = asyncio.get_event_loop()
 
     async def handle(self):
         """处理 WebSocket 连接"""
@@ -126,14 +127,17 @@ class ConnectionHandler:
         print('[ConnectionHandler] 停止录音')
 
     def on_asr_result(self, text: str, is_final: bool):
-        """ASR 识别结果回调"""
+        """ASR 识别结果回调（在 ASR 后台线程中调用）"""
         if is_final:
             self.current_user_text = text
-            asyncio.create_task(self.manager.send_message(self.websocket, {
-                'type': 'transcription',
-                'text': text,
-                'is_final': True
-            }))
+            asyncio.run_coroutine_threadsafe(
+                self.manager.send_message(self.websocket, {
+                    'type': 'transcription',
+                    'text': text,
+                    'is_final': True
+                }),
+                self.loop
+            )
 
     async def process_conversation(self):
         """处理对话流程"""
@@ -193,11 +197,14 @@ class ConnectionHandler:
             self.current_user_text = ""
 
     def on_tts_audio(self, pcm_data: bytes):
-        """TTS 音频数据回调"""
-        asyncio.create_task(self.manager.send_message(self.websocket, {
-            'type': 'audio',
-            'data': base64.b64encode(pcm_data).decode('utf-8')
-        }))
+        """TTS 音频数据回调（在 TTS 后台线程中调用）"""
+        asyncio.run_coroutine_threadsafe(
+            self.manager.send_message(self.websocket, {
+                'type': 'audio',
+                'data': base64.b64encode(pcm_data).decode('utf-8')
+            }),
+            self.loop
+        )
 
     def cleanup(self):
         """清理资源"""
